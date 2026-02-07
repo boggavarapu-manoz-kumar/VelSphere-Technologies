@@ -54,10 +54,10 @@ const studentSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Pre-save hook to hash password
-studentSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
+// Pre-save hook to hash password
+studentSchema.pre('save', async function () {
+    if (!this.isModified('password')) return;
     this.password = await bcrypt.hash(this.password, 10);
-    next();
 });
 
 // Method to check password
@@ -70,7 +70,7 @@ studentSchema.methods.generateAccessToken = function () {
     return jwt.sign(
         {
             _id: this._id,
-            _id: this._id,
+
             email: this.email,
             isIntern: this.isIntern,
             isFirstLogin: this.isFirstLogin

@@ -5,11 +5,11 @@ import { Task } from '../models/Task.model.js';
 // Submit a Task
 export const submitTask = async (req, res) => {
     try {
-        const { taskId, submissionLink, comments } = req.body;
+        const { taskId, submissionLink, linkedInPostLink, comments } = req.body;
         const studentId = req.user._id;
 
-        if (!taskId || !submissionLink) {
-            return res.status(400).json({ message: "Task ID and Submission Link are required" });
+        if (!taskId || !submissionLink || !linkedInPostLink) {
+            return res.status(400).json({ message: "Task ID, Submission Link, and LinkedIn Post Link are required" });
         }
 
         // Check if task exists
@@ -33,6 +33,7 @@ export const submitTask = async (req, res) => {
             student: studentId,
             task: taskId,
             submissionLink,
+            linkedInPostLink,
             comments
         });
 
@@ -149,6 +150,7 @@ export const getSubmissionAnalytics = async (req, res) => {
                     status: status, // submitted, pending, missed
                     submissionStatus: submission ? submission.status : null, // approved, rejected, pending
                     submissionLink: submission ? submission.submissionLink : null,
+                    linkedInPostLink: submission ? submission.linkedInPostLink : null,
                     submissionId: submission ? submission._id : null
                 });
             }

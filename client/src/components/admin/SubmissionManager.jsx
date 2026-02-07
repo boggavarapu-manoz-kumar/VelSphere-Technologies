@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, CheckCircle, XCircle, Clock, Loader2, Filter } from 'lucide-react';
+import api from '../../services/api';
 
 const SubmissionManager = () => {
     const [submissions, setSubmissions] = useState([]);
@@ -8,8 +9,6 @@ const SubmissionManager = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState('all'); // all, pending, approved, rejected
     const [updatingId, setUpdatingId] = useState(null);
-
-    const token = localStorage.getItem('token'); // Admin Token
 
     useEffect(() => {
         if (viewMode === 'submissions') {
@@ -22,13 +21,8 @@ const SubmissionManager = () => {
     const fetchAnalytics = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/submissions/analytics`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setAnalytics(data.analytics);
-            }
+            const res = await api.get('/submissions/analytics');
+            setAnalytics(res.data.analytics);
         } catch (error) {
             console.error("Error fetching analytics:", error);
         } finally {
@@ -38,13 +32,8 @@ const SubmissionManager = () => {
 
     const fetchSubmissions = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/submissions/all`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setSubmissions(data.submissions);
-            }
+            const res = await api.get('/submissions/all');
+            setSubmissions(res.data.submissions);
         } catch (error) {
             console.error("Error fetching submissions:", error);
         } finally {
@@ -55,20 +44,11 @@ const SubmissionManager = () => {
     const handleStatusUpdate = async (id, newStatus) => {
         setUpdatingId(id);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/submissions/${id}/status`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ status: newStatus })
-            });
+            await api.patch(`/submissions/${id}/status`, { status: newStatus });
 
-            if (res.ok) {
-                setSubmissions(submissions.map(s =>
-                    s._id === id ? { ...s, status: newStatus } : s
-                ));
-            }
+            setSubmissions(submissions.map(s =>
+                s._id === id ? { ...s, status: newStatus } : s
+            ));
         } catch (error) {
             console.error("Failed to update status", error);
         } finally {
@@ -141,6 +121,7 @@ const SubmissionManager = () => {
                                         <th className="p-4">Intern</th>
                                         <th className="p-4">Task</th>
                                         <th className="p-4">Submission</th>
+                                        <th className="p-4">LinkedIn</th>
                                         <th className="p-4">Status</th>
                                         <th className="p-4 text-right">Actions</th>
                                     </tr>
@@ -170,6 +151,18 @@ const SubmissionManager = () => {
                                                         "{sub.comments}"
                                                     </div>
                                                 )}
+                                            </td>
+                                            <td className="p-4">
+                                                {sub.linkedInPostLink ? (
+                                                    <a
+                                                        href={sub.linkedInPostLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium"
+                                                    >
+                                                        View Post <ExternalLink size={14} />
+                                                    </a>
+                                                ) : <span className="text-slate-400 text-xs">-</span>}
                                             </td>
                                             <td className="p-4">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium uppercase

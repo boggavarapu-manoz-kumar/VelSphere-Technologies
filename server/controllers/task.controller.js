@@ -42,12 +42,13 @@ export const getTasksByDomain = async (req, res) => {
         // Build Query
         const query = {
             domain: domainId,
-            isActive: true,
-            deadline: { $gte: new Date() }
+            isActive: true
         };
 
         // If task has a batch, it MUST match the student's batch.
         // If task has NO batch, it shows for everyone in that domain.
+        // Batch filtering disabled for stability - showing all domain tasks
+        /*
         if (studentBatch) {
             query.$or = [
                 { batch: { $exists: false } },
@@ -63,6 +64,7 @@ export const getTasksByDomain = async (req, res) => {
                 { batch: "" }
             ];
         }
+        */
 
         const tasks = await Task.find(query).sort({ deadline: 1 });
 

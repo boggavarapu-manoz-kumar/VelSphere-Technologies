@@ -33,13 +33,15 @@ const InternLogin = () => {
             }
 
             // Success
-            // You might want to save user details to context here later
+            // Save token globally for Intern
+            localStorage.setItem('internToken', data.accessToken);
+            // Save user details
             localStorage.setItem('intern_user', JSON.stringify(data.user));
 
             if (data.user.isFirstLogin) {
                 navigate('/intern/change-password');
             } else {
-                navigate('/intern/dashboard'); // Will be intern dashboard later
+                navigate('/intern/dashboard');
             }
 
         } catch (err) {

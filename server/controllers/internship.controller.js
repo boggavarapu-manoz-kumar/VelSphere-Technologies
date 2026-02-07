@@ -3,7 +3,7 @@ import { Internship } from '../models/internship.model.js';
 // Public: Get all active internships (with Domain populated)
 export const getAllInternships = async (req, res) => {
     try {
-        const query = { isActive: true };
+        const query = {}; // Return all internships to ensure visibility on Home Page
 
         // Optional: Filter by specific domain ID if passed in query
         if (req.query.domainId && req.query.domainId !== 'all') {
@@ -33,7 +33,8 @@ export const createInternship = async (req, res) => {
             title,
             domain,
             description,
-            applicationLink
+            applicationLink,
+            isActive: true // Explicitly set to active
         });
 
         res.status(201).json({ message: "Internship posted successfully", internship: newInternship });

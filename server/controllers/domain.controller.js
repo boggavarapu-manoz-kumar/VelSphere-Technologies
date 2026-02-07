@@ -4,7 +4,7 @@ import { Domain } from '../models/domain.model.js';
 export const getAllDomains = async (req, res) => {
     try {
         const domains = await Domain.find({ isActive: true }).select('name icon');
-        res.status(200).json(domains);
+        res.status(200).json({ domains });
     } catch (error) {
         res.status(500).json({ message: "Error fetching domains", error: error.message });
     }

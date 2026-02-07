@@ -16,6 +16,11 @@ const submissionSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    linkedInPostLink: {
+        type: String,
+        required: true,
+        trim: true
+    },
     comments: {
         type: String,
         trim: true

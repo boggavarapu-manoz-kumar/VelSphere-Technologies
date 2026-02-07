@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Calendar, Briefcase, Loader2, AlertCircle } from 'lucide-react';
+import api from '../../services/api';
 
 const TaskManager = () => {
     const [tasks, setTasks] = useState([]);
@@ -16,8 +17,6 @@ const TaskManager = () => {
     const [error, setError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const token = localStorage.getItem('token');
-
     useEffect(() => {
         fetchDomains();
         fetchTasks();
@@ -25,9 +24,10 @@ const TaskManager = () => {
 
     const fetchDomains = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/domains`);
-            const data = await res.json();
-            if (data.domains) setDomains(data.domains);
+            const res = await api.get('/domains');
+            // Handle both legacy (array) and new (object) API responses for robustness
+            const domainList = Array.isArray(res.data) ? res.data : (res.data.domains || []);
+            setDomains(domainList);
         } catch (error) {
             console.error("Error fetching domains:", error);
         }
@@ -35,13 +35,8 @@ const TaskManager = () => {
 
     const fetchTasks = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/tasks/all`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setTasks(data.tasks);
-            }
+            const res = await api.get('/tasks/all');
+            setTasks(res.data.tasks);
         } catch (error) {
             console.error("Error fetching tasks:", error);
         } finally {
@@ -55,28 +50,16 @@ const TaskManager = () => {
         setError(null);
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/tasks/create`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(formData)
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) throw new Error(data.message);
+            const res = await api.post('/tasks/create', formData);
 
             // Success
-            setTasks([data.task, ...tasks]);
+            setTasks([res.data.task, ...tasks]);
             setShowForm(false);
             setFormData({ title: '', description: '', domainId: '', batch: '', deadline: '' });
-            // Re-fetch to populate domain names if needed, or manually construct the object
             fetchTasks();
 
         } catch (err) {
-            setError(err.message);
+            setError(err.response?.data?.message || err.message);
         } finally {
             setIsSubmitting(false);
         }
@@ -86,14 +69,8 @@ const TaskManager = () => {
         if (!window.confirm("Are you sure you want to delete this task?")) return;
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/tasks/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (res.ok) {
-                setTasks(tasks.filter(t => t._id !== id));
-            }
+            await api.delete(`/tasks/${id}`);
+            setTasks(tasks.filter(t => t._id !== id));
         } catch (error) {
             console.error("Delete failed", error);
         }
@@ -105,7 +82,7 @@ const TaskManager = () => {
                 <h2 className="text-xl font-bold text-slate-800">Task Management</h2>
                 <button
                     onClick={() => setShowForm(!showForm)}
-                    className="flex items-center gap-2 px-4 py-2 bg-velsphere-blue text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
                 >
                     <Plus size={18} />
                     Post New Task
@@ -127,7 +104,7 @@ const TaskManager = () => {
                                 <input
                                     type="text"
                                     required
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-velsphere-blue focus:border-transparent outline-none"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none"
                                     placeholder="e.g., Build Login API"
                                     value={formData.title}
                                     onChange={e => setFormData({ ...formData, title: e.target.value })}
@@ -137,7 +114,7 @@ const TaskManager = () => {
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Assign to Domain</label>
                                 <select
                                     required
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-velsphere-blue focus:border-transparent outline-none"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none bg-white"
                                     value={formData.domainId}
                                     onChange={e => setFormData({ ...formData, domainId: e.target.value })}
                                 >
@@ -155,7 +132,7 @@ const TaskManager = () => {
                             <label className="block text-sm font-medium text-slate-700 mb-1">Target Batch <span className="text-slate-400 font-normal">(Optional)</span></label>
                             <input
                                 type="text"
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-velsphere-blue focus:border-transparent outline-none"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none"
                                 placeholder="e.g., Winter-2024 (Leave empty for all)"
                                 value={formData.batch}
                                 onChange={e => setFormData({ ...formData, batch: e.target.value })}
@@ -167,7 +144,7 @@ const TaskManager = () => {
                             <textarea
                                 required
                                 rows="3"
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-velsphere-blue focus:border-transparent outline-none"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none"
                                 placeholder="Detailed instructions for the intern..."
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
@@ -179,7 +156,7 @@ const TaskManager = () => {
                             <input
                                 type="date"
                                 required
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-velsphere-blue focus:border-transparent outline-none"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none"
                                 value={formData.deadline}
                                 onChange={e => setFormData({ ...formData, deadline: e.target.value })}
                             />

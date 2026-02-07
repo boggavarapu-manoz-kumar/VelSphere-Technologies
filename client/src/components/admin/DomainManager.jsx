@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Briefcase } from 'lucide-react';
+import api from '../../services/api';
 
 const DomainManager = () => {
     const [domains, setDomains] = useState([]);
@@ -8,15 +9,15 @@ const DomainManager = () => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
-    const token = localStorage.getItem('accessToken');
-
     const fetchDomains = async () => {
         try {
-            const res = await fetch('http://localhost:8000/api/v1/domains');
-            const data = await res.json();
-            setDomains(data);
+            const res = await api.get('/domains');
+            // Handle both legacy (array) and new (object) API responses for robustness
+            const domainList = Array.isArray(res.data) ? res.data : (res.data.domains || []);
+            setDomains(domainList);
         } catch (err) {
             setError('Failed to load domains');
+            console.error(err);
         } finally {
             setLoading(false);
         }
@@ -34,24 +35,11 @@ const DomainManager = () => {
         setError('');
 
         try {
-            const res = await fetch('http://localhost:8000/api/v1/domains', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ name: newDomain })
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.message || 'Failed to add domain');
-            }
-
+            await api.post('/domains', { name: newDomain });
             setNewDomain('');
             fetchDomains(); // Refresh list
         } catch (err) {
-            setError(err.message);
+            setError(err.response?.data?.message || err.message);
         } finally {
             setSubmitting(false);
         }
@@ -61,17 +49,10 @@ const DomainManager = () => {
         if (!window.confirm('Are you sure? This relies on internships being deleted or re-assigned first ideally (but for now we will just delete).')) return;
 
         try {
-            const res = await fetch(`http://localhost:8000/api/v1/domains/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!res.ok) throw new Error('Failed to delete');
+            await api.delete(`/domains/${id}`);
             fetchDomains();
         } catch (err) {
-            setError(err.message);
+            setError(err.response?.data?.message || err.message);
         }
     };
 

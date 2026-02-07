@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Check, AlertCircle, Loader2 } from 'lucide-react';
+import api from '../services/api';
 
 const ChangePassword = () => {
     const [passwords, setPasswords] = useState({ newPassword: '', confirmPassword: '' });
@@ -31,26 +32,7 @@ const ChangePassword = () => {
         }
 
         try {
-            const token = JSON.parse(localStorage.getItem('intern_user'))?.accessToken || '';
-            // Note: We might need to get the token properly if it's just in HttpOnly cookie.
-            // However, verifyJWT checks cookies too, so credentials: 'include' handles it.
-
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/students/change-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                    // credentials included automatically by browser for cookies
-                },
-                body: JSON.stringify(passwords),
-                // Important to send cookies
-                credentials: 'include'
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to change password');
-            }
+            await api.post('/students/change-password', passwords);
 
             // Update local user state
             const user = JSON.parse(localStorage.getItem('intern_user'));
@@ -63,7 +45,7 @@ const ChangePassword = () => {
             navigate('/intern/dashboard');
 
         } catch (err) {
-            setError(err.message);
+            setError(err.response?.data?.message || err.message);
         } finally {
             setIsLoading(false);
         }

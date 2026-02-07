@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Briefcase, Calendar, CheckCircle, Clock, Link as LinkIcon, AlertCircle, Loader2, XCircle, History } from 'lucide-react';
+import { LogOut, User, Briefcase, Calendar, CheckCircle, Clock, Link as LinkIcon, AlertCircle, Loader2, XCircle } from 'lucide-react';
+import api from '../services/api';
 
 const InternDashboard = () => {
     const navigate = useNavigate();
@@ -13,7 +14,7 @@ const InternDashboard = () => {
     // Submission Modal State
     const [selectedTask, setSelectedTask] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submissionForm, setSubmissionForm] = useState({ link: '', comments: '' });
+    const [submissionForm, setSubmissionForm] = useState({ link: '', linkedin: '', comments: '' });
     const [error, setError] = useState(null);
 
     useEffect(() => {
@@ -30,43 +31,29 @@ const InternDashboard = () => {
 
     const fetchProfileAndTasks = async () => {
         try {
-            const token = JSON.parse(localStorage.getItem('intern_user'))?.accessToken;
-            if (!token) return;
-
             // 1. Fetch Profile
-            const profileRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/students/me`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-                credentials: 'include'
-            });
-            const profileData = await profileRes.json();
+            const profileRes = await api.get('/students/me');
+            const userData = profileRes.data.user;
 
-            if (profileRes.ok) {
-                const userData = profileData.user;
-                setUser(userData);
-                const lsData = JSON.parse(localStorage.getItem('intern_user'));
-                localStorage.setItem('intern_user', JSON.stringify({ ...lsData, ...userData }));
+            setUser(userData);
+            localStorage.setItem('intern_user', JSON.stringify(userData));
 
-                // 2. Fetch Tasks (if domain exists)
-                if (userData.domain?._id || userData.domain) {
-                    const domainId = userData.domain._id || userData.domain;
-                    const tasksRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/tasks/domain/${domainId}`, {
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        credentials: 'include'
-                    });
-                    const tasksData = await tasksRes.json();
-                    if (tasksRes.ok) setTasks(tasksData.tasks);
-                }
-
-                // 3. Fetch My Submissions
-                const subsRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/submissions/my`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    credentials: 'include'
-                });
-                const subsData = await subsRes.json();
-                if (subsRes.ok) setSubmissions(subsData.submissions);
+            // 2. Fetch Tasks (if domain exists)
+            if (userData.domain?._id || userData.domain) {
+                const domainId = userData.domain._id || userData.domain;
+                const tasksRes = await api.get(`/tasks/domain/${domainId}`);
+                setTasks(tasksRes.data.tasks);
             }
+
+            // 3. Fetch My Submissions
+            const subsRes = await api.get('/submissions/my');
+            setSubmissions(subsRes.data.submissions);
+
         } catch (error) {
             console.error("Failed to fetch data", error);
+            if (error.response?.status === 401) {
+                handleLogout();
+            }
         } finally {
             setIsTaskLoading(false);
         }
@@ -74,14 +61,12 @@ const InternDashboard = () => {
 
     const handleLogout = async () => {
         try {
-            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/students/logout`, {
-                method: 'POST',
-                credentials: 'include'
-            });
-            localStorage.removeItem('intern_user');
-            // use navigate replace to clear history, or window.location.replace for harder reset
-            window.location.replace('/intern/login');
+            await api.post('/students/logout');
         } catch (error) {
+            // Ignore error
+        } finally {
+            localStorage.removeItem('intern_user');
+            localStorage.removeItem('internToken');
             localStorage.removeItem('intern_user');
             window.location.replace('/intern/login');
         }
@@ -93,31 +78,20 @@ const InternDashboard = () => {
         setError(null);
 
         try {
-            const token = JSON.parse(localStorage.getItem('intern_user'))?.accessToken;
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/submissions/create`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    taskId: selectedTask._id,
-                    submissionLink: submissionForm.link,
-                    comments: submissionForm.comments
-                }),
-                credentials: 'include'
+            const res = await api.post('/submissions/create', {
+                taskId: selectedTask._id,
+                submissionLink: submissionForm.link,
+                linkedInPostLink: submissionForm.linkedin,
+                comments: submissionForm.comments
             });
 
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
-
             // Success
-            setSubmissions([...submissions, data.submission]);
+            setSubmissions([...submissions, res.data.submission]);
             setSelectedTask(null); // Close modal
-            setSubmissionForm({ link: '', comments: '' });
+            setSubmissionForm({ link: '', linkedin: '', comments: '' });
 
         } catch (err) {
-            setError(err.message);
+            setError(err.response?.data?.message || err.message);
         } finally {
             setIsSubmitting(false);
         }
@@ -327,6 +301,19 @@ const InternDashboard = () => {
                                     value={submissionForm.link}
                                     onChange={e => setSubmissionForm({ ...submissionForm, link: e.target.value })}
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">LinkedIn Post URL <span className="text-red-500">*</span></label>
+                                <input
+                                    type="url"
+                                    required
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-velsphere-blue focus:border-transparent outline-none"
+                                    placeholder="https://linkedin.com/posts/..."
+                                    value={submissionForm.linkedin}
+                                    onChange={e => setSubmissionForm({ ...submissionForm, linkedin: e.target.value })}
+                                />
+                                <p className="text-xs text-slate-500 mt-1">Please share a screen recording of your working project on LinkedIn and paste the link here.</p>
                             </div>
 
                             <div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, BookOpen, ExternalLink, Calendar } from 'lucide-react';
+import api from '../../services/api';
 
 const InternshipManager = () => {
     const [internships, setInternships] = useState([]);
@@ -17,21 +18,18 @@ const InternshipManager = () => {
         applicationLink: ''
     });
 
-    const token = localStorage.getItem('accessToken');
-
     const fetchData = async () => {
         try {
             setLoading(true);
             const [intRes, domRes] = await Promise.all([
-                fetch('http://localhost:8000/api/v1/internships'),
-                fetch('http://localhost:8000/api/v1/domains')
+                api.get('/internships'),
+                api.get('/domains')
             ]);
 
-            const intData = await intRes.json();
-            const domData = await domRes.json();
-
-            setInternships(intData);
-            setDomains(domData);
+            setInternships(intRes.data);
+            // Handle both legacy (array) and new (object) API responses for robustness
+            const domainList = Array.isArray(domRes.data) ? domRes.data : (domRes.data.domains || []);
+            setDomains(domainList);
         } catch (err) {
             setError('Failed to load data');
         } finally {
@@ -49,26 +47,14 @@ const InternshipManager = () => {
         setError('');
 
         try {
-            const res = await fetch('http://localhost:8000/api/v1/internships', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(formData)
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.message || 'Failed to create internship');
-            }
+            const res = await api.post('/internships', formData);
 
             // Success
             setFormData({ title: '', domain: '', description: '', applicationLink: '' });
             setActiveTab('list');
             fetchData();
         } catch (err) {
-            setError(err.message);
+            setError(err.message || 'Failed to create internship');
         } finally {
             setSubmitting(false);
         }
@@ -78,15 +64,10 @@ const InternshipManager = () => {
         if (!window.confirm('Are you sure you want to delete this internship?')) return;
 
         try {
-            const res = await fetch(`http://localhost:8000/api/v1/internships/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!res.ok) throw new Error('Failed to delete');
+            await api.delete(`/internships/${id}`);
             fetchData();
         } catch (err) {
-            setError(err.message);
+            setError(err.message || 'Failed to delete');
         }
     };
 

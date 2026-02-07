@@ -18,9 +18,11 @@ const InternProtectedRoute = () => {
                     return;
                 }
 
+                const token = localStorage.getItem('internToken');
                 const parsedUser = JSON.parse(localUser);
-                // Strict check: Must exist and be an intern
-                if (!parsedUser || !parsedUser.isIntern) {
+
+                // Strict check: Must exist, be an intern, AND HAVE A TOKEN
+                if (!parsedUser || !parsedUser.isIntern || !token) {
                     setIsAuthenticated(false);
                     setIsLoading(false);
                     return;

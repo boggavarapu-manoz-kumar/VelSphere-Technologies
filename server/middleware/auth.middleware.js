@@ -5,7 +5,7 @@ import { Student } from '../models/Student.model.js';
 // Verify Student/Intern Token
 export const verifyJWT = async (req, res, next) => {
     try {
-        const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
+        const token = req.header("Authorization")?.replace("Bearer ", "") || req.cookies?.accessToken;
 
         if (!token) {
             return res.status(401).json({ message: "Unauthorized request" });
